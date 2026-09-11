@@ -2,11 +2,12 @@
   "manifest_version": 2,
   "default_locale": "en",
   "name": "Speed Dial Flow",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Modern, fast, and fully customizable Speed Dial new tab page for Firefox.",
   "permissions": [
     "tabs",
     "storage",
+    "unlimitedStorage",
     "<all_urls>"
   ],
   "chrome_url_overrides": {

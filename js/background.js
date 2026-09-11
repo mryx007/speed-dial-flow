@@ -53,9 +53,11 @@ function getCaptureUrlParts(url) {
     const parsed = new URL(url);
     const pathname = parsed.pathname.replace(/\/+$/, '') || '/';
     return {
+      protocol: parsed.protocol,
       host: parsed.hostname.replace(/^www\./, '').toLowerCase(),
+      port: parsed.port || (parsed.protocol === 'https:' ? '443' : '80'),
       pathname,
-      search: parsed.search
+      search: parsed.search || ''
     };
   } catch {
     return null;
@@ -66,10 +68,23 @@ function sameCaptureUrl(a, b) {
   const first = getCaptureUrlParts(a);
   const second = getCaptureUrlParts(b);
   if (!first || !second) return false;
-  if (first.host !== second.host) return false;
-  if (first.pathname !== second.pathname) return false;
-  if (first.search && second.search) {
-    return first.search === second.search;
+  return (
+    first.protocol === second.protocol &&
+    first.host === second.host &&
+    first.port === second.port &&
+    first.pathname === second.pathname &&
+    first.search === second.search
+  );
+}
+
+function isCaptureRedirectAllowed(originalUrl, currentUrl) {
+  const original = getCaptureUrlParts(originalUrl);
+  const current = getCaptureUrlParts(currentUrl);
+  if (!original || !current) return false;
+  if (original.host !== current.host) return false;
+  const isAuthOrConsent = /login|signin|auth|consent|captcha/i;
+  if (!isAuthOrConsent.test(original.pathname) && isAuthOrConsent.test(current.pathname)) {
+    return false;
   }
   return true;
 }
@@ -457,7 +472,7 @@ async function openSiteAndWaitForAutomaticScreenshot(site, windowId) {
       originalActiveTabId = null;
     }
 
-    const createProperties = { url: site.url, active: true };
+    const createProperties = { url: site.url, active: false };
     if (Number.isInteger(windowId)) {
       createProperties.windowId = windowId;
     }
@@ -474,7 +489,8 @@ async function openSiteAndWaitForAutomaticScreenshot(site, windowId) {
     }
     managedRefreshTabIds.add(tab.id);
 
-    await waitForTabComplete(tab.id, 12000);
+    const loaded = await waitForTabComplete(tab.id, 12000);
+    if (!loaded) return false;
     await delay(CAPTURE_DELAY);
 
     let currentTab;
@@ -485,8 +501,13 @@ async function openSiteAndWaitForAutomaticScreenshot(site, windowId) {
       return false;
     }
 
+    if (!currentTab || !currentTab.url || !isCaptureRedirectAllowed(site.url, currentTab.url)) {
+      return false;
+    }
+
     if (await isCloudflareChallenge(tab.id)) return false;
-    await waitForPageRenderReady(tab.id, 2500);
+    const rendered = await waitForPageRenderReady(tab.id, 2500);
+    if (!rendered) return false;
 
     await runInTab(tab.id, `window.scrollTo(0, 0);`).catch(() => { });
     await delay(100);

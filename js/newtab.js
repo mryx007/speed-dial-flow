@@ -367,6 +367,10 @@ function shrinkImageForCache(dataUrl, targetWidth = getFastCacheTargetWidth()) {
         ctx.drawImage(img, 0, 0, w, h);
 
         const thumbUrl = canvas.toDataURL('image/jpeg', 0.75);
+        if (thumbnailShrinkCache.size >= 40) {
+          const firstKey = thumbnailShrinkCache.keys().next().value;
+          thumbnailShrinkCache.delete(firstKey);
+        }
         thumbnailShrinkCache.set(dataUrl, thumbUrl);
         resolve(thumbUrl);
       } catch (err) {
@@ -472,9 +476,6 @@ function isSameScreenshot(cachedSite, newSite) {
   if (!cur || !next) return false;
   if (cur === next) return true;
   if (cachedSite?._origLen && cachedSite._origLen === next.length) return true;
-  if (cachedSite?.id && newSite?.id && String(cachedSite.id) === String(newSite.id) && cur.startsWith('data:image/') && next.startsWith('data:image/')) {
-    return true;
-  }
   return false;
 }
 
@@ -525,6 +526,41 @@ async function load() {
           }
         }
       });
+    } else if (hadRenderedSites && sitesChanged && sites.length === loadedSites.length) {
+      const onlyScreenshotsChanged = sites.every((s, i) => {
+        const ls = loadedSites[i];
+        return s && ls && s.id === ls.id && s.url === ls.url && s.title === ls.title &&
+          (!!s.split === !!ls.split) &&
+          (!s.split || (s.split.id === ls.split.id && s.split.url === ls.split.url));
+      });
+      if (onlyScreenshotsChanged) {
+        loadedSites.forEach((ls, i) => {
+          const cur = sites[i];
+          if (!isSameScreenshot(cur, ls)) {
+            const tile = document.querySelector(`.tile[data-id="${ls.id}"]`);
+            if (tile) {
+              const preview = tile.querySelector('.tile-preview');
+              if (preview) updateTilePreviewSmooth(preview, ls, false);
+            }
+          }
+          if (ls.split && cur && cur.split && !isSameScreenshot(cur.split, ls.split)) {
+            const tile = document.querySelector(`.tile[data-id="${ls.id}"]`);
+            if (tile) {
+              const part = tile.querySelector(`.tile-part[data-id="${ls.split.id}"]`);
+              if (part) {
+                const preview = part.querySelector('.tile-preview');
+                if (preview) updateTilePreviewSmooth(preview, ls.split, true);
+              }
+            }
+          }
+        });
+        sites = loadedSites;
+        settings = normalizedSettings;
+        if (settingsChanged) applySettings();
+        writeFastCacheSettings(settings);
+        cacheFastSitesWithThumbnails(sites, true);
+        return;
+      }
     }
 
     sites = loadedSites;
@@ -594,9 +630,10 @@ function normalizeSettings(rawSettings = {}) {
   if (!['thumbs', 'icons'].includes(normalized.previewType)) {
     normalized.previewType = DEFAULT_SETTINGS.previewType;
   }
-  if (!['cover', 'stretch'].includes(normalized.previewFit)) {
-    normalized.previewFit = DEFAULT_SETTINGS.previewFit;
-  }
+  const fitVal = String(normalized.previewFit || '').toLowerCase();
+  normalized.previewFit = ['cover', 'contain', 'stretch', 'fill'].includes(fitVal)
+    ? (fitVal === 'fill' ? 'stretch' : fitVal)
+    : DEFAULT_SETTINGS.previewFit;
   normalized.previewFill = Math.max(
     0,
     Math.min(numberOrDefault(normalized.previewFill, DEFAULT_SETTINGS.previewFill), 30)
@@ -834,95 +871,8 @@ function attachTileDragEvents(tile, siteId) {
   });
 }
 
-const screenshotAspectCache = new Map();
-
-function getScreenshotAspectSync(dataUrl) {
-  if (!dataUrl || typeof dataUrl !== 'string') return null;
-
-  const cached = screenshotAspectCache.get(dataUrl);
-  if (cached) return cached;
-
-  const commaIdx = dataUrl.indexOf(',');
-  if (commaIdx < 0) return null;
-
-  try {
-    const binary = atob(dataUrl.slice(commaIdx + 1, commaIdx + 1 + 2048));
-    if (binary.charCodeAt(0) === 0xff && binary.charCodeAt(1) === 0xd8) {
-      let i = 2;
-      while (i < binary.length - 8) {
-        if (binary.charCodeAt(i) !== 0xff) { i++; continue; }
-        const marker = binary.charCodeAt(i + 1);
-        if (marker === 0xc0 || marker === 0xc1 || marker === 0xc2) {
-          const h = (binary.charCodeAt(i + 5) << 8) | binary.charCodeAt(i + 6);
-          const w = (binary.charCodeAt(i + 7) << 8) | binary.charCodeAt(i + 8);
-          if (w > 0 && h > 0) {
-            const aspect = w / h;
-            screenshotAspectCache.set(dataUrl, aspect);
-            return aspect;
-          }
-        }
-        const len = (binary.charCodeAt(i + 2) << 8) | binary.charCodeAt(i + 3);
-        if (len < 2) break;
-        i += 2 + len;
-      }
-    } else if (
-      binary.charCodeAt(0) === 0x89 &&
-      binary.charCodeAt(1) === 0x50 &&
-      binary.charCodeAt(2) === 0x4e &&
-      binary.charCodeAt(3) === 0x47 &&
-      binary.length >= 24
-    ) {
-      const w = (binary.charCodeAt(16) << 24) | (binary.charCodeAt(17) << 16) | (binary.charCodeAt(18) << 8) | binary.charCodeAt(19);
-      const h = (binary.charCodeAt(20) << 24) | (binary.charCodeAt(21) << 16) | (binary.charCodeAt(22) << 8) | binary.charCodeAt(23);
-      if (w > 0 && h > 0) {
-        const aspect = w / h;
-        screenshotAspectCache.set(dataUrl, aspect);
-        return aspect;
-      }
-    }
-  } catch {}
-
-  return null;
-}
-
-function fitTilePreviewImage(imageEl, previewEl, screenshotUrl, isSplit = false) {
-  if (settings.previewFit !== 'cover') {
-    imageEl.style.backgroundSize = '';
-    return;
-  }
-
-  const applyFit = aspect => {
-    const previewWidth = previewEl.offsetWidth || settings.tileWidth;
-    let previewHeight = previewEl.offsetHeight;
-    if (!previewHeight) {
-      previewHeight = isSplit
-        ? Math.max(20, (settings.tileHeight - settings.titleBarHeight) / 2)
-        : settings.tileHeight;
-    }
-    const tileAspect = previewWidth / previewHeight;
-
-    if (aspect > tileAspect + 0.02) {
-      imageEl.style.backgroundSize = '100% 100%';
-    } else {
-      imageEl.style.backgroundSize = '';
-    }
-  };
-
-  const syncAspect = getScreenshotAspectSync(screenshotUrl);
-  if (syncAspect) {
-    applyFit(syncAspect);
-    return;
-  }
-
-  const img = new Image();
-  img.onload = () => {
-    if (img.naturalWidth && img.naturalHeight) {
-      const aspect = img.naturalWidth / img.naturalHeight;
-      screenshotAspectCache.set(screenshotUrl, aspect);
-      applyFit(aspect);
-    }
-  };
-  img.src = screenshotUrl;
+function fitTilePreviewImage(imageEl) {
+  if (imageEl) imageEl.style.backgroundSize = '';
 }
 
 function renderTilePreview(preview, site, isSplit = false) {
@@ -2542,6 +2492,18 @@ if (typeof browser !== 'undefined' && browser?.storage?.onChanged) {
       thumbnailShrinkCache.clear();
       cacheFastSitesWithThumbnails(sites, true);
     }
+  }
+
+  if (changes.sites && Array.isArray(changes.sites.newValue)) {
+    changes.sites.newValue.forEach(ns => {
+      getDialParts(ns).forEach(nd => {
+        const found = findDialById(nd.id);
+        if (found) {
+          if (nd.screenshotVisitCount !== undefined) found.dial.screenshotVisitCount = nd.screenshotVisitCount;
+          if (nd.screenshotLastCapturedAt !== undefined) found.dial.screenshotLastCapturedAt = nd.screenshotLastCapturedAt;
+        }
+      });
+    });
   }
 
   const screenshotKeys = Object.keys(changes).filter(k => k.startsWith('screenshot_'));
