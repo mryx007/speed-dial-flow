@@ -4,7 +4,7 @@ A modern, lightning-fast, and deeply customizable Speed Dial Flow new tab page f
 
 ---
 
-## ✨ Features
+## Features
 
 - **Automated Webpage Screenshots:** Renders high-resolution thumbnails locally in background tabs without interrupting your workflow.
 - **Split Dial Support:** Split any tile horizontally into two separate, independent bookmarks inside a single grid slot.
@@ -18,7 +18,7 @@ A modern, lightning-fast, and deeply customizable Speed Dial Flow new tab page f
 
 ---
 
-## ⚙️ Configuration & Settings
+## Configuration & Settings
 
 Speed Dial Flow offers extensive customization to match your personal aesthetic and display resolution. Access the settings panel anytime via the menu button in the top toolbar:
 
@@ -79,7 +79,7 @@ Speed Dial Flow offers extensive customization to match your personal aesthetic 
 
 ---
 
-## 🖱️ Context Menu & Tile Actions
+## Context Menu & Tile Actions
 
 Right-click on any dial to open the interactive context menu:
 - **Edit (`Bearbeiten`):** Change the site URL and display title.
@@ -90,7 +90,7 @@ Right-click on any dial to open the interactive context menu:
 
 ---
 
-## 🔒 Permissions Explained
+## Permissions Explained
 
 | Permission | Purpose |
 | :--- | :--- |
@@ -102,7 +102,7 @@ Right-click on any dial to open the interactive context menu:
 
 ---
 
-## 🚀 Installation & Development
+## Installation & Development
 
 ### Load Temporarily in Firefox
 1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
@@ -119,7 +119,7 @@ zip -r speed-dial-flow.zip manifest.json _locales/ css/ icons/ js/ pages/
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Platform:** Mozilla Firefox (WebExtensions API, Manifest V2)
 - **Frontend:** Semantic HTML5, Vanilla CSS3 (Custom Properties & Flexbox/Grid)
@@ -128,6 +128,6 @@ zip -r speed-dial-flow.zip manifest.json _locales/ css/ icons/ js/ pages/
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE).
