@@ -472,7 +472,7 @@ async function openSiteAndWaitForAutomaticScreenshot(site, windowId) {
       originalActiveTabId = null;
     }
 
-    const createProperties = { url: site.url, active: false };
+    const createProperties = { url: site.url, active: true };
     if (Number.isInteger(windowId)) {
       createProperties.windowId = windowId;
     }
@@ -562,6 +562,9 @@ async function openSiteAndWaitForAutomaticScreenshot(site, windowId) {
       await browser.tabs.remove(tab.id).catch(() => { });
       await delay(BULK_REFRESH_TAB_CLEANUP_DELAY);
     }
+    if (originalActiveTabId) {
+      browser.tabs.update(originalActiveTabId, { active: true }).catch(() => { });
+    }
   }
 }
 
@@ -630,6 +633,10 @@ async function refreshAllScreenshots(refreshWindowId) {
       total,
       message: `${updated} / ${total} Vorschaubilder aktualisiert.`
     });
+
+    if (originalActiveTabId) {
+      browser.tabs.update(originalActiveTabId, { active: true }).catch(() => { });
+    }
   } catch (error) {
     const message = error && error.message ? error.message : String(error);
     sendBulkRefreshStatus({
