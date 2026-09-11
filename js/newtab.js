@@ -580,26 +580,42 @@ async function load() {
         if (settingsChanged) applySettings();
         writeFastCacheSettings(settings);
         cacheFastSitesWithThumbnails(sites, true);
-        return;
+      } else {
+        sites = loadedSites;
+        settings = normalizedSettings;
+
+        if (settingsChanged) {
+          applySettings();
+        } else if (typeof applyTranslations === 'function') {
+          applyTranslations();
+        }
+        updateLockButtonUI();
+
+        if (sitesChanged) {
+          render();
+        }
+
+        writeFastCacheSettings(settings);
+        cacheFastSitesWithThumbnails(sites, sitesChanged);
       }
+    } else {
+      sites = loadedSites;
+      settings = normalizedSettings;
+
+      if (settingsChanged) {
+        applySettings();
+      } else if (typeof applyTranslations === 'function') {
+        applyTranslations();
+      }
+      updateLockButtonUI();
+
+      if (sitesChanged) {
+        render();
+      }
+
+      writeFastCacheSettings(settings);
+      cacheFastSitesWithThumbnails(sites, sitesChanged);
     }
-
-    sites = loadedSites;
-    settings = normalizedSettings;
-
-    if (settingsChanged) {
-      applySettings();
-    } else if (typeof applyTranslations === 'function') {
-      applyTranslations();
-    }
-    updateLockButtonUI();
-
-    if (sitesChanged) {
-      render();
-    }
-
-    writeFastCacheSettings(settings);
-    cacheFastSitesWithThumbnails(sites, sitesChanged);
   } catch (error) {
     console.warn('Speed Dial could not load stored data.', error);
     if (!sites.length) {
