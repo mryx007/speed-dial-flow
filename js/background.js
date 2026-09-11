@@ -305,7 +305,7 @@ async function waitForPageRenderReady(tabId, timeoutMs = 2500) {
         return;
       }
       if (Date.now() - start >= ${timeoutMs}) {
-        resolve(document.readyState === 'complete');
+        resolve(hasVisibleContent());
         return;
       }
       setTimeout(check, 100);
@@ -314,7 +314,7 @@ async function waitForPageRenderReady(tabId, timeoutMs = 2500) {
     check();
   }))()`);
 
-  return result !== false;
+  return result === true;
 }
 
 async function suppressHoverForCapture(tabId) {
@@ -727,7 +727,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (await isCloudflareChallenge(tabId)) return;
 
   // Render-Bereitschaft (Bilder/Text geladen)
-  await waitForPageRenderReady(tabId, 2500);
+  const ready = await waitForPageRenderReady(tabId, 2500);
+  if (!ready) return;
 
   // Fall A: Nutzer ist direkt am Seitenanfang
   if (await isTabUnscrolled(tabId)) {
