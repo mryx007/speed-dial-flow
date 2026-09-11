@@ -1,9 +1,9 @@
 {
   "manifest_version": 2,
   "default_locale": "en",
-  "name": "__MSG_extensionName__",
-  "version": "1.0.1",
-  "description": "__MSG_extensionDescription__",
+  "name": "Speed Dial Flow",
+  "version": "1.0.2",
+  "description": "Modern, fast, and fully customizable Speed Dial new tab page for Firefox.",
   "permissions": [
     "tabs",
     "storage",
