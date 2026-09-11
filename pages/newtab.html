@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="de" data-menu-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="dark">
+  <title>Speed Dial</title>
+  <link rel="stylesheet" href="../css/newtab.css">
+</head>
+<body>
+
+  <div id="toolbar">
+    <button id="refresh-thumbnails" data-i18n-title="toolbar_refresh" data-i18n-aria-label="toolbar_refresh" title="Alle Thumbnails aktualisieren" aria-label="Alle Thumbnails aktualisieren">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19 4v6h-6" />
+        <path d="M18.6 10A7.7 7.7 0 1 0 19.3 15" />
+      </svg>
+    </button>
+    <button id="lock-btn" data-i18n-title="toolbar_lock_allow" data-i18n-aria-label="toolbar_lock_allow" title="Kacheln sperren (Verschieben erlauben)" aria-label="Kacheln sperren">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+      </svg>
+    </button>
+    <span id="thumbnail-refresh-status" hidden>0 / 0</span>
+    <button id="settings-btn" data-i18n-title="toolbar_settings" data-i18n-aria-label="toolbar_settings" title="Einstellungen" aria-label="Einstellungen">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 7h14" />
+        <path d="M5 12h14" />
+        <path d="M5 17h14" />
+      </svg>
+    </button>
+  </div>
+
+  <div id="grid"></div>
+
+  <!-- Seite bearbeiten / hinzufügen (Popup wie Kontextmenü) -->
+  <div id="site-modal" class="site-popup">
+    <div class="site-popup-title" id="modal-title" data-i18n="modal_title_add">Seite hinzufügen</div>
+    <div class="site-popup-field">
+      <label for="site-url" data-i18n="label_site_url">URL</label>
+      <input type="text" id="site-url" placeholder="https://beispiel.de" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="site-popup-field">
+      <label for="site-name" data-i18n="label_site_name">Name (optional)</label>
+      <input type="text" id="site-name" placeholder="Meine Seite">
+    </div>
+    <div class="site-popup-actions">
+      <button class="btn btn-secondary" id="close-site-modal" data-i18n="btn_cancel">Abbrechen</button>
+      <button class="btn btn-primary" id="save-site" data-i18n="btn_save">Speichern</button>
+    </div>
+  </div>
+
+  <!-- Einstellungen (Kompaktes Popover-Menü am Stück) -->
+  <div id="settings-modal">
+    <div class="settings-popover">
+      <div class="settings-popover-header">
+        <div class="popover-brand">
+          <div class="brand-icon-box">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+              <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            </svg>
+          </div>
+          <span class="popover-title" data-i18n="settings_title">Einstellungen</span>
+        </div>
+      </div>
+
+      <div class="settings-body">
+
+        <!-- ABSCHNITT: ALLGEMEIN & SPRACHE -->
+        <div class="settings-section">
+          <div class="settings-section-divider">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span data-i18n="sec_general">Allgemein &amp; Sprache</span>
+          </div>
+          <div class="settings-card">
+            <div class="setting-row">
+              <div class="setting-meta">
+                <label for="set-language" data-i18n="label_language">Sprache</label>
+                <span class="setting-desc" data-i18n="desc_language">Sprache der Benutzeroberfläche</span>
+              </div>
+              <div class="setting-field">
+                <select id="set-language" class="select-pill">
+                  <option value="auto" data-i18n="opt_lang_auto">Automatisch (System)</option>
+                  <option value="de" data-i18n="opt_lang_de">Deutsch</option>
+                  <option value="en" data-i18n="opt_lang_en">English</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-meta">
+                <label for="set-menu-theme" data-i18n="label_menu_theme">Menü-Design</label>
+                <span class="setting-desc" data-i18n="desc_menu_theme">Erscheinungsbild des Einstellungsmenüs</span>
+              </div>
+              <div class="setting-field">
+                <select id="set-menu-theme" class="select-pill">
+                  <option value="dark" data-i18n="opt_theme_dark">Dunkel (Standard)</option>
+                  <option value="light" data-i18n="opt_theme_light">Hell</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ABSCHNITT: LAYOUT & RASTER -->
+        <div class="settings-section">
+          <div class="settings-section-divider">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            <span data-i18n="sec_layout">Layout &amp; Raster</span>
+          </div>
+            <div class="settings-group-label" data-i18n="group_grid">Raster-Aufbau</div>
+            <div class="settings-card">
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-columns" data-i18n="label_columns">Spalten pro Zeile</label>
+                  <span class="setting-desc" data-i18n="desc_columns">Wie viele Favoriten nebeneinander Platz finden</span>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-target="set-columns" aria-label="Weniger Spalten">−</button>
+                    <input type="number" id="set-columns" class="stepper-input" min="1" max="20" value="5">
+                    <button type="button" class="stepper-btn" data-action="inc" data-target="set-columns" aria-label="Mehr Spalten">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row setting-row-check">
+                <div class="setting-meta">
+                  <label for="set-auto-fit" data-i18n="label_auto_fit">Automatische Skalierung</label>
+                  <span class="setting-desc" data-i18n="desc_auto_fit">Kacheln füllen den Bildschirm gleichmäßig und flexibel aus</span>
+                </div>
+                <div class="setting-field">
+                  <input type="checkbox" id="set-auto-fit" class="toggle-switch">
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-group-label" data-i18n="group_tile_dimensions">Kachel-Dimensionen</div>
+            <div class="settings-card">
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-tile-width" data-i18n="label_tile_width">Standardbreite</label>
+                  <span class="setting-desc" data-i18n="desc_tile_width">Basisbreite jeder Kachel in Pixel</span>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="10" data-target="set-tile-width" aria-label="Breite verringern">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-tile-width" class="stepper-input" min="80" max="800" value="230">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="10" data-target="set-tile-width" aria-label="Breite vergrößern">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-tile-height" data-i18n="label_tile_height">Vorschauhöhe</label>
+                  <span class="setting-desc" data-i18n="desc_tile_height">Höhe des Screenshot-Ausschnitts</span>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="10" data-target="set-tile-height" aria-label="Höhe verringern">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-tile-height" class="stepper-input" min="50" max="600" value="160">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="10" data-target="set-tile-height" aria-label="Höhe vergrößern">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-group-label" data-i18n="group_gaps">Freiräume</div>
+            <div class="settings-card">
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-column-gap" data-i18n="label_column_gap">Horizontaler Kachelabstand</label>
+                  <span class="setting-desc" data-i18n="desc_column_gap">Abstand zwischen den Spalten</span>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="2" data-target="set-column-gap" aria-label="Abstand verringern">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-column-gap" class="stepper-input" min="0" max="80" value="12">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="2" data-target="set-column-gap" aria-label="Abstand vergrößern">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-row-gap" data-i18n="label_row_gap">Vertikaler Kachelabstand</label>
+                  <span class="setting-desc" data-i18n="desc_row_gap">Abstand zwischen den Zeilen</span>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="2" data-target="set-row-gap" aria-label="Abstand verringern">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-row-gap" class="stepper-input" min="0" max="80" value="12">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="2" data-target="set-row-gap" aria-label="Abstand vergrößern">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+        </div>
+
+        <!-- ABSCHNITT: VORSCHAU & BILD -->
+        <div class="settings-section">
+          <div class="settings-section-divider">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span data-i18n="sec_preview">Vorschau &amp; Bild</span>
+          </div>
+          <div class="settings-group-label" data-i18n="group_image_fit">Bildanpassung</div>
+            <div class="settings-card">
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-preview-type" data-i18n="label_preview_type">Kachel-Inhalt</label>
+                  <span class="setting-desc" data-i18n="desc_preview_type">Wähle zwischen Website-Vorschaubildern (Thumbnails) oder Icons</span>
+                </div>
+                <div class="setting-field">
+                  <select id="set-preview-type" class="select-pill">
+                    <option value="thumbs" selected data-i18n="opt_preview_type_thumbs">Vorschaubilder (Thumbnails)</option>
+                    <option value="icons" data-i18n="opt_preview_type_icons">Nur Icons (Favicons)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-preview-fit" data-i18n="label_preview_fit">Darstellungsmodus</label>
+                  <span class="setting-desc" data-i18n="desc_preview_fit">Wie Screenshots im Kachelrahmen eingepasst werden</span>
+                </div>
+                <div class="setting-field">
+                  <select id="set-preview-fit" class="select-pill">
+                    <option value="cover" data-i18n="opt_fit_cover">Vollbild (Cover)</option>
+                    <option value="contain" data-i18n="opt_fit_contain">Einpassen (Contain)</option>
+                    <option value="fill" data-i18n="opt_fit_stretch">Strecken (Stretch)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-preview-fill" data-i18n="label_preview_fill">Innenabstand / Rand</label>
+                  <span class="setting-desc" data-i18n="desc_preview_fill">Zusätzlicher weißer oder transparenter Rand um den Screenshot</span>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="2" data-target="set-preview-fill" aria-label="Abstand verringern">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-preview-fill" class="stepper-input" min="0" max="60" value="0">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="2" data-target="set-preview-fill">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-screenshot-refresh-mode" data-i18n="label_refresh_mode">Hintergrund-Aktualisierung</label>
+                  <span class="setting-desc" data-i18n="desc_refresh_mode">Erneuert Screenshots automatisch bei wiederholtem Besuch</span>
+                </div>
+                <div class="setting-field">
+                  <div class="input-combo">
+                    <select id="set-screenshot-refresh-mode" class="select-pill">
+                      <option value="visit-interval" data-i18n="opt_mode_interval">Nach Besuchen</option>
+                      <option value="daily" data-i18n="opt_mode_daily">Täglich</option>
+                      <option value="disabled" data-i18n="opt_mode_disabled">Nie (Deaktiviert)</option>
+                    </select>
+                    <div class="stepper-field" id="screenshot-refresh-visits-wrap">
+                      <button type="button" class="stepper-btn" data-action="dec" data-target="set-screenshot-refresh-visits">−</button>
+                      <div class="stepper-value-wrap">
+                        <input type="number" id="set-screenshot-refresh-visits" class="stepper-input" min="1" max="999" value="1">
+                        <span class="stepper-unit">x</span>
+                      </div>
+                      <button type="button" class="stepper-btn" data-action="inc" data-target="set-screenshot-refresh-visits">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-group-label" data-i18n="group_border">Kontur &amp; Kanten</div>
+            <div class="settings-card">
+              <div class="setting-row setting-row-check">
+                <div class="setting-meta">
+                  <label for="set-show-thumb-border" data-i18n="label_thumb_border">Kantenkontur hervorheben</label>
+                  <span class="setting-desc" data-i18n="desc_thumb_border">Sichtbare Kontur um den Screenshot-Bereich</span>
+                </div>
+                <div class="setting-field">
+                  <input type="checkbox" id="set-show-thumb-border" class="toggle-switch">
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-thumb-border-width" data-i18n="label_border_width">Konturstärke</label>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-target="set-thumb-border-width">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-thumb-border-width" class="stepper-input" min="1" max="12" value="1">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-target="set-thumb-border-width">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="btn-set-thumb-border-color" data-i18n="label_border_color">Konturfarbe</label>
+                </div>
+                <div class="setting-field color-picker-cell">
+                  <button type="button" id="btn-set-thumb-border-color" class="color-swatch-btn" data-target="set-thumb-border-color" aria-label="Konturfarbe wählen">
+                    <span class="color-swatch-preview"></span>
+                    <span class="color-swatch-code">#5F6670</span>
+                  </button>
+                  <input type="color" id="set-thumb-border-color" class="color-native-hidden" value="#5f6670">
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-thumb-border-opacity" data-i18n="label_border_opacity">Deckkraft der Kontur</label>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="5" data-target="set-thumb-border-opacity">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-thumb-border-opacity" class="stepper-input" min="0" max="100" value="100">
+                      <span class="stepper-unit">%</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="5" data-target="set-thumb-border-opacity">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+        </div>
+
+        <!-- ABSCHNITT: KACHEL-DESIGN -->
+        <div class="settings-section">
+          <div class="settings-section-divider">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span data-i18n="sec_tile_design">Kachel-Design</span>
+          </div>
+
+          <div class="settings-group-label" data-i18n="group_typography">Kachel-Header &amp; Typografie</div>
+            <div class="settings-card">
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-title-size" data-i18n="label_title_size">Schriftgröße</label>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-target="set-title-size">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-title-size" class="stepper-input" min="9" max="32" value="12">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-target="set-title-size">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-title-weight" data-i18n="label_title_weight">Schriftstärke</label>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="100" data-target="set-title-weight">−</button>
+                    <input type="number" id="set-title-weight" class="stepper-input" min="100" max="900" step="100" value="400">
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="100" data-target="set-title-weight">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-title-bar-height" data-i18n="label_header_height">Header-Leistenhöhe</label>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="2" data-target="set-title-bar-height">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-title-bar-height" class="stepper-input" min="16" max="64" value="28">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="2" data-target="set-title-bar-height">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="btn-set-title-bg" data-i18n="label_header_bg">Header-Hintergrundfarbe</label>
+                </div>
+                <div class="setting-field color-picker-cell">
+                  <button type="button" id="btn-set-title-bg" class="color-swatch-btn" data-target="set-title-bg" aria-label="Header-Hintergrundfarbe wählen">
+                    <span class="color-swatch-preview"></span>
+                    <span class="color-swatch-code">#2B2B2B</span>
+                  </button>
+                  <input type="color" id="set-title-bg" class="color-native-hidden" value="#2b2b2b">
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="btn-set-title-color" data-i18n="label_header_color">Header-Textfarbe</label>
+                </div>
+                <div class="setting-field color-picker-cell">
+                  <button type="button" id="btn-set-title-color" class="color-swatch-btn" data-target="set-title-color" aria-label="Header-Textfarbe wählen">
+                    <span class="color-swatch-preview"></span>
+                    <span class="color-swatch-code">#FFFFFF</span>
+                  </button>
+                  <input type="color" id="set-title-color" class="color-native-hidden" value="#ffffff">
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-group-label" data-i18n="group_separator">Trennlinie</div>
+            <div class="settings-card">
+              <div class="setting-row setting-row-check">
+                <div class="setting-meta">
+                  <label for="set-show-title-separator" data-i18n="label_show_separator">Trennlinie einblenden</label>
+                  <span class="setting-desc" data-i18n="desc_show_separator">Feine Linie zwischen Titel und Vorschaubild</span>
+                </div>
+                <div class="setting-field">
+                  <input type="checkbox" id="set-show-title-separator" class="toggle-switch">
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-title-separator-width" data-i18n="label_separator_width">Linienstärke</label>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-target="set-title-separator-width">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-title-separator-width" class="stepper-input" min="1" max="12" value="1">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-target="set-title-separator-width">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="btn-set-title-separator-color" data-i18n="label_separator_color">Linienfarbe</label>
+                </div>
+                <div class="setting-field color-picker-cell">
+                  <button type="button" id="btn-set-title-separator-color" class="color-swatch-btn" data-target="set-title-separator-color" aria-label="Linienfarbe wählen">
+                    <span class="color-swatch-preview"></span>
+                    <span class="color-swatch-code">#475569</span>
+                  </button>
+                  <input type="color" id="set-title-separator-color" class="color-native-hidden" value="#475569">
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-title-separator-opacity" data-i18n="label_separator_opacity">Deckkraft der Trennlinie</label>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="5" data-target="set-title-separator-opacity">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-title-separator-opacity" class="stepper-input" min="0" max="100" value="100">
+                      <span class="stepper-unit">%</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="5" data-target="set-title-separator-opacity">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-group-label" data-i18n="group_shape_depth">Form &amp; Tiefe</div>
+            <div class="settings-card">
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-tile-radius" data-i18n="label_tile_radius">Eckenabrundung</label>
+                  <span class="setting-desc" data-i18n="desc_tile_radius">Sanfter Kurvenradius der Kacheln</span>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="2" data-target="set-tile-radius">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-tile-radius" class="stepper-input" min="0" max="40" value="8">
+                      <span class="stepper-unit">px</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="2" data-target="set-tile-radius">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row setting-row-check">
+                <div class="setting-meta">
+                  <label for="set-show-tile-shadow" data-i18n="label_tile_shadow">Kachel-Schatten</label>
+                  <span class="setting-desc" data-i18n="desc_tile_shadow">Erhöht die räumliche Tiefe auf dem Hintergrund</span>
+                </div>
+                <div class="setting-field">
+                  <input type="checkbox" id="set-show-tile-shadow" class="toggle-switch">
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-tile-shadow-opacity" data-i18n="label_shadow_opacity">Schattenstärke</label>
+                </div>
+                <div class="setting-field">
+                  <div class="stepper-field">
+                    <button type="button" class="stepper-btn" data-action="dec" data-step="5" data-target="set-tile-shadow-opacity">−</button>
+                    <div class="stepper-value-wrap">
+                      <input type="number" id="set-tile-shadow-opacity" class="stepper-input" min="0" max="100" value="40">
+                      <span class="stepper-unit">%</span>
+                    </div>
+                    <button type="button" class="stepper-btn" data-action="inc" data-step="5" data-target="set-tile-shadow-opacity">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row setting-row-check">
+                <div class="setting-meta">
+                  <label for="set-show-add-tile" data-i18n="label_show_add_tile">„Plus“-Kachel anzeigen</label>
+                  <span class="setting-desc" data-i18n="desc_show_add_tile">Schnellkachel zum Hinzufügen neuer Seiten am Rasterende</span>
+                </div>
+                <div class="setting-field">
+                  <input type="checkbox" id="set-show-add-tile" class="toggle-switch">
+                </div>
+              </div>
+            </div>
+        </div>
+
+        <!-- ABSCHNITT: HINTERGRUND -->
+        <div class="settings-section">
+          <div class="settings-section-divider">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span data-i18n="sec_background">Hintergrund</span>
+          </div>
+            <div class="settings-group-label" data-i18n="group_bg_design">Hintergrund-Design</div>
+            <div class="settings-card">
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="btn-set-bg" data-i18n="label_bg_color">Hintergrundfarbe</label>
+                  <span class="setting-desc" data-i18n="desc_bg_color">Flächige Grundfarbe des Dashboards</span>
+                </div>
+                <div class="setting-field color-picker-cell">
+                  <button type="button" id="btn-set-bg" class="color-swatch-btn" data-target="set-bg" aria-label="Hintergrundfarbe wählen">
+                    <span class="color-swatch-preview"></span>
+                    <span class="color-swatch-code">#2B2B2B</span>
+                  </button>
+                  <input type="color" id="set-bg" class="color-native-hidden" value="#2b2b2b">
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-bg-size" data-i18n="label_bg_size">Bildskalierung</label>
+                  <span class="setting-desc" data-i18n="desc_bg_size">Wie das Hintergrundbild dargestellt wird</span>
+                </div>
+                <div class="setting-field">
+                  <select id="set-bg-size" class="select-pill">
+                    <option value="auto" data-i18n="opt_bg_size_auto">Originalgröße (Auto)</option>
+                    <option value="cover" data-i18n="opt_fit_cover">Vollbild (Cover)</option>
+                    <option value="contain" data-i18n="opt_fit_contain">Einpassen (Contain)</option>
+                    <option value="100% 100%" data-i18n="opt_bg_size_stretch">Gestreckt</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label for="set-bg-position" data-i18n="label_bg_position">Bildposition</label>
+                </div>
+                <div class="setting-field">
+                  <select id="set-bg-position" class="select-pill">
+                    <option value="center center" data-i18n="opt_bg_pos_center">Zentriert</option>
+                    <option value="top left" data-i18n="opt_bg_pos_top_left">Oben links</option>
+                    <option value="top center" data-i18n="opt_bg_pos_top_center">Oben zentriert</option>
+                    <option value="top right" data-i18n="opt_bg_pos_top_right">Oben rechts</option>
+                    <option value="center left" data-i18n="opt_bg_pos_center_left">Mitte links</option>
+                    <option value="center right" data-i18n="opt_bg_pos_center_right">Mitte rechts</option>
+                    <option value="bottom left" data-i18n="opt_bg_pos_bottom_left">Unten links</option>
+                    <option value="bottom center" data-i18n="opt_bg_pos_bottom_center">Unten zentriert</option>
+                    <option value="bottom right" data-i18n="opt_bg_pos_bottom_right">Unten rechts</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-meta">
+                  <label data-i18n="label_custom_wallpaper">Eigenes Wallpaper</label>
+                  <span class="setting-desc" id="bg-image-status" data-i18n="status_no_bg_image">Kein Bild gesetzt</span>
+                </div>
+                <div class="setting-field">
+                  <div class="file-action-group">
+                    <label for="set-bg-image" class="btn-action">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      <span data-i18n="btn_choose_image">Bild wählen</span>
+                    </label>
+                    <input type="file" id="set-bg-image" accept="image/*" class="hidden-file-input">
+                    <button type="button" id="remove-bg-image" class="btn-action btn-danger-soft">
+                      <span data-i18n="btn_remove_image">Entfernen</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div id="bg-image-preview"></div>
+            </div>
+        </div>
+
+        <!-- ABSCHNITT: DATENSICHERUNG -->
+        <div class="settings-section">
+          <div class="settings-section-divider">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span data-i18n="sec_backup">Datensicherung</span>
+          </div>
+          <div class="settings-group-label" data-i18n="group_backup">Sicherung &amp; Wiederherstellung</div>
+          <div class="settings-card">
+            <div class="backup-hero">
+              <div class="backup-hero-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+              </div>
+              <div class="backup-hero-text">
+                <div class="backup-title">Komplettes Speed Dial Backup</div>
+                <div class="backup-desc" id="backup-status">Exportiert alle Kacheln, Screenshots, Ordner und Einstellungen sicher als portable ZIP-Datei.</div>
+              </div>
+            </div>
+            <div class="backup-actions-modern">
+              <button type="button" class="btn-backup btn-backup-export" id="export-backup">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span data-i18n="btn_export_backup">Backup exportieren</span>
+              </button>
+              <button type="button" class="btn-backup btn-backup-import" id="import-backup-btn">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span data-i18n="btn_import_backup">Backup importieren</span>
+              </button>
+              <input type="file" id="import-backup" class="hidden-file-input" accept="application/zip,.zip">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="settings-popover-footer">
+        <span class="version-tag">Version 1.3.3</span>
+      </div>
+    </div>
+
+    <!-- Moderner Studio Farbwähler Popover -->
+    <div id="custom-color-picker" class="custom-color-picker" hidden>
+      <div class="color-spectrum-wrap">
+        <canvas class="color-spectrum-canvas" width="224" height="120"></canvas>
+        <div class="color-spectrum-cursor"></div>
+      </div>
+      <div class="color-picker-controls">
+        <div class="color-preview-circle"></div>
+        <div class="color-slider-wrap">
+          <input type="range" class="color-hue-slider" min="0" max="360" value="0" aria-label="Farbton">
+        </div>
+        <button type="button" class="color-eyedropper-btn" id="color-picker-eyedropper" title="Farbe vom Bildschirm aufnehmen" aria-label="Farbpipette">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22l5-5m0 0l9.5-9.5a2.121 2.121 0 0 0-3-3L4 14l-2 8z"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
+        </button>
+      </div>
+      <div class="color-hex-row">
+        <span class="color-hex-prefix">HEX</span>
+        <input type="text" class="color-hex-input" id="color-picker-hex" maxlength="7" spellcheck="false" value="#5F6670">
+      </div>
+      <div class="color-presets-title" data-i18n="picker_presets">Vorschläge</div>
+      <div class="color-presets-grid" id="color-picker-presets"></div>
+    </div>
+  </div>
+
+  <!-- Kontextmenü -->
+  <div id="context-menu">
+    <div class="menu-item" id="ctx-edit">
+      <svg class="menu-item-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+      </svg>
+      <span class="item-label" data-i18n="ctx_edit">Bearbeiten</span>
+    </div>
+    <div class="menu-item" id="ctx-toggle-split">
+      <svg class="menu-item-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M3 12h18" />
+      </svg>
+      <span class="item-label" data-i18n="ctx_add_split">Untere Hälfte hinzufügen</span>
+    </div>
+    <div class="menu-item" id="ctx-refresh">
+      <svg class="menu-item-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21.5 2v6h-6" />
+        <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+      </svg>
+      <span class="item-label" data-i18n="ctx_refresh">Screenshot aktualisieren</span>
+    </div>
+    <div class="menu-control" id="ctx-refresh-interval">
+      <div class="menu-control-label-wrap">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <label for="ctx-refresh-visits" data-i18n="ctx_interval">Intervall</label>
+      </div>
+      <input type="number" id="ctx-refresh-visits" min="0" max="999">
+      <button type="button" id="ctx-refresh-default" data-i18n-title="ctx_reset_title" data-i18n-aria-label="ctx_reset_aria" title="Zurücksetzen" aria-label="Intervall zurücksetzen">
+        <svg class="reset-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18.5 9.5a6.5 6.5 0 1 0 1 5" />
+          <path d="M18.5 5.5v4h-4" />
+        </svg>
+      </button>
+    </div>
+    <div class="menu-divider"></div>
+    <div class="menu-item delete" id="ctx-delete-part" hidden>
+      <svg class="menu-item-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M3 12h18" />
+        <line x1="9" y1="7.5" x2="15" y2="7.5" />
+      </svg>
+      <span class="item-label" id="ctx-delete-part-label" data-i18n="ctx_delete_part">Hälfte löschen</span>
+    </div>
+    <div class="menu-item delete" id="ctx-delete">
+      <svg class="menu-item-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        <line x1="10" y1="11" x2="10" y2="17" />
+        <line x1="14" y1="11" x2="14" y2="17" />
+      </svg>
+      <span class="item-label" id="ctx-delete-label" data-i18n="ctx_delete">Löschen</span>
+    </div>
+  </div>
+
+  <!-- Modernes Studio Select Popover (kein hässliches graues OS-Menü) -->
+  <div id="custom-select-popover" class="custom-select-popover" hidden></div>
+
+  <script src="../js/i18n.js"></script>
+  <script src="../js/newtab.js"></script>
+</body>
+</html>

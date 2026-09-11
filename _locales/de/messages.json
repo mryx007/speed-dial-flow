@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "Speed Dial",
+    "description": "Name der Erweiterung"
+  },
+  "extensionDescription": {
+    "message": "Persönlicher Speed Dial für Firefox",
+    "description": "Beschreibung der Erweiterung"
+  }
+}

@@ -1,0 +1,29 @@
+# Upload and release scripts (contains sensitive credentials)
+Erweiterungen hochladen.py
+*hochladen*.py
+*.py
+.firefox-upload.json
+*.pem
+*.key
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Backup and test archives
+*.zip
+*.xpi
+
+# MCP and IDE configuration
+.playwright-mcp/
+.vscode/
+.idea/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
