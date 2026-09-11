@@ -382,17 +382,24 @@ function shrinkImageForCache(dataUrl, targetWidth = getFastCacheTargetWidth()) {
   });
 }
 
+function getScreenshotSig(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') return '';
+  const len = dataUrl.length;
+  const mid = Math.floor(len / 2);
+  return `${len}:${dataUrl.slice(mid, mid + 32)}:${dataUrl.slice(-32)}`;
+}
+
 async function generateFastSites(sitesToCache, targetWidth) {
   return Promise.all(sitesToCache.map(async site => {
     const copy = { ...site };
     if (copy.screenshot) {
-      copy._origLen = copy.screenshot.length;
+      copy._origSig = getScreenshotSig(copy.screenshot);
       copy.screenshot = await shrinkImageForCache(copy.screenshot, targetWidth);
     }
     if (copy.split) {
       copy.split = { ...copy.split };
       if (copy.split.screenshot) {
-        copy.split._origLen = copy.split.screenshot.length;
+        copy.split._origSig = getScreenshotSig(copy.split.screenshot);
         copy.split.screenshot = await shrinkImageForCache(copy.split.screenshot, targetWidth);
       }
     }
@@ -475,7 +482,7 @@ function isSameScreenshot(cachedSite, newSite) {
   if (!cur && !next) return true;
   if (!cur || !next) return false;
   if (cur === next) return true;
-  if (cachedSite?._origLen && cachedSite._origLen === next.length) return true;
+  if (cachedSite?._origSig && cachedSite._origSig === getScreenshotSig(next)) return true;
   return false;
 }
 
@@ -520,9 +527,9 @@ async function load() {
       loadedSites.forEach((loadedSite, i) => {
         const currentSite = sites[i];
         if (currentSite) {
-          if (currentSite._origLen) loadedSite._origLen = currentSite._origLen;
-          if (currentSite.split && loadedSite.split && currentSite.split._origLen) {
-            loadedSite.split._origLen = currentSite.split._origLen;
+          if (currentSite._origSig) loadedSite._origSig = currentSite._origSig;
+          if (currentSite.split && loadedSite.split && currentSite.split._origSig) {
+            loadedSite.split._origSig = currentSite.split._origSig;
           }
         }
       });
@@ -636,7 +643,7 @@ function normalizeSettings(rawSettings = {}) {
     : DEFAULT_SETTINGS.previewFit;
   normalized.previewFill = Math.max(
     0,
-    Math.min(numberOrDefault(normalized.previewFill, DEFAULT_SETTINGS.previewFill), 30)
+    Math.min(numberOrDefault(normalized.previewFill, DEFAULT_SETTINGS.previewFill), 60)
   );
   normalized.showThumbBorder = normalized.showThumbBorder !== false;
   normalized.thumbBorderWidth = Math.max(

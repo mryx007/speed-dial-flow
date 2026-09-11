@@ -1,6 +1,6 @@
 const SCREENSHOT_WIDTH = 1280;
 const SCREENSHOT_QUALITY = 0.82;
-const CAPTURE_DELAY = 1200;
+const CAPTURE_DELAY = 4000;
 const SCROLLED_CAPTURE_RETRY_MS = 15000;
 const SCROLLED_CAPTURE_RETRY_INTERVAL_MS = 500;
 const BULK_REFRESH_CAPTURE_TIMEOUT = 14000;
@@ -355,7 +355,7 @@ async function withLatestSite(siteId, url, extraKeys, callback) {
     const latestData = await browser.storage.local.get(['sites', ...extraKeys]);
     const latestSites = latestData.sites || [];
     const latestSite = findDialById(latestSites, siteId);
-    if (!latestSite) return false;
+    if (!latestSite || (url && !sameCaptureUrl(latestSite.url, url))) return false;
     return await callback(latestSite, latestSites, latestData);
   });
   screenshotSaveQueue = task.catch(() => { });
@@ -538,6 +538,17 @@ async function openSiteAndWaitForAutomaticScreenshot(site, windowId) {
       return false;
     }
 
+    try {
+      const afterTab = await browser.tabs.get(tab.id);
+      if (!afterTab || !afterTab.url || !isCaptureRedirectAllowed(site.url, afterTab.url)) {
+        return false;
+      }
+      currentTab = afterTab;
+    } catch {
+      return false;
+    }
+    if (await isCloudflareChallenge(tab.id)) return false;
+
     const screenshot = await normalizeScreenshot(raw);
     const finalUrl = currentTab.url || site.url;
     await saveScreenshotForSite(site.id, finalUrl, screenshot);
@@ -550,9 +561,6 @@ async function openSiteAndWaitForAutomaticScreenshot(site, windowId) {
       managedRefreshTabIds.delete(tab.id);
       await browser.tabs.remove(tab.id).catch(() => { });
       await delay(BULK_REFRESH_TAB_CLEANUP_DELAY);
-    }
-    if (originalActiveTabId) {
-      browser.tabs.update(originalActiveTabId, { active: true }).catch(() => { });
     }
   }
 }
@@ -622,10 +630,6 @@ async function refreshAllScreenshots(refreshWindowId) {
       total,
       message: `${updated} / ${total} Vorschaubilder aktualisiert.`
     });
-
-    if (originalActiveTabId) {
-      browser.tabs.update(originalActiveTabId, { active: true }).catch(() => { });
-    }
   } catch (error) {
     const message = error && error.message ? error.message : String(error);
     sendBulkRefreshStatus({
