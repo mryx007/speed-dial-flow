@@ -1,6 +1,6 @@
 const SCREENSHOT_WIDTH = 1280;
 const SCREENSHOT_QUALITY = 0.82;
-const CAPTURE_DELAY = 4000;
+const CAPTURE_DELAY = 3000;
 const SCROLLED_CAPTURE_RETRY_MS = 15000;
 const SCROLLED_CAPTURE_RETRY_INTERVAL_MS = 500;
 const BULK_REFRESH_CAPTURE_TIMEOUT = 14000;
@@ -261,7 +261,8 @@ async function attemptCaptureForTab(tabId, siteId) {
   // 10. Normalisieren & Speichern
   try {
     const screenshot = await normalizeScreenshot(raw);
-    await saveScreenshotForSite(site.id, currentTab.url, screenshot);
+    const saved = await saveScreenshotForSite(site.id, site.url, screenshot, currentTab.url);
+    if (!saved) return false;
     await runInTab(tabId, `window.__speedDialCaptured = true;`).catch(() => { });
     return true;
   } catch (err) {
@@ -350,20 +351,22 @@ function sendBulkRefreshStatus(status) {
   }).catch(() => { });
 }
 
-async function withLatestSite(siteId, url, extraKeys, callback) {
+async function withLatestSite(siteId, expectedSiteUrl, capturedUrl, extraKeys, callback) {
   const task = screenshotSaveQueue.then(async () => {
-    const latestData = await browser.storage.local.get(['sites', ...extraKeys]);
+    const latestData = await browser.storage.local.get(['sites', ...(extraKeys || [])]);
     const latestSites = latestData.sites || [];
     const latestSite = findDialById(latestSites, siteId);
-    if (!latestSite || (url && !sameCaptureUrl(latestSite.url, url))) return false;
+    if (!latestSite) return false;
+    if (expectedSiteUrl && !sameCaptureUrl(latestSite.url, expectedSiteUrl)) return false;
+    if (capturedUrl && !isCaptureRedirectAllowed(latestSite.url, capturedUrl)) return false;
     return await callback(latestSite, latestSites, latestData);
   });
   screenshotSaveQueue = task.catch(() => { });
   return task;
 }
 
-async function saveScreenshotForSite(siteId, url, screenshot) {
-  return withLatestSite(siteId, url, [], async (latestSite, latestSites) => {
+async function saveScreenshotForSite(siteId, expectedSiteUrl, screenshot, capturedUrl = null) {
+  return withLatestSite(siteId, expectedSiteUrl, capturedUrl, [], async (latestSite, latestSites) => {
     latestSite.screenshotVisitCount = 0;
     latestSite.screenshotLastCapturedAt = currentDateStamp();
     await browser.storage.local.set({
@@ -380,7 +383,7 @@ async function shouldCaptureScreenshotForVisit(siteId, url, settings, force = fa
   const mode = normalizeScreenshotRefreshMode(settings && settings.screenshotRefreshMode);
   const today = currentDateStamp();
 
-  return withLatestSite(siteId, url, [`screenshot_${siteId}`], async (latestSite, latestSites, latestData) => {
+  return withLatestSite(siteId, url, null, [`screenshot_${siteId}`], async (latestSite, latestSites, latestData) => {
     const hasScreenshot = !!latestData[`screenshot_${siteId}`];
     if (!hasScreenshot) return true;
 
@@ -551,8 +554,8 @@ async function openSiteAndWaitForAutomaticScreenshot(site, windowId) {
 
     const screenshot = await normalizeScreenshot(raw);
     const finalUrl = currentTab.url || site.url;
-    await saveScreenshotForSite(site.id, finalUrl, screenshot);
-    return true;
+    const saved = await saveScreenshotForSite(site.id, site.url, screenshot, finalUrl);
+    return Boolean(saved);
   } catch (error) {
     console.warn('[SpeedDial] Automatische Screenshot-Aktualisierung fehlgeschlagen:', site.url, error.message);
     return false;

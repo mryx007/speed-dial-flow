@@ -319,6 +319,14 @@ const FAST_CACHE_WIDTH_KEY = 'speed_dial_fast_cache_width';
 const thumbnailShrinkCache = new Map();
 let currentCachedTargetWidth = 0;
 
+function setBoundedMap(map, key, value, limit) {
+  if (map.size >= limit && !map.has(key)) {
+    const firstKey = map.keys().next().value;
+    map.delete(firstKey);
+  }
+  map.set(key, value);
+}
+
 function getFastCacheTargetWidth(tileWidth = settings?.tileWidth) {
   const baseWidth = Math.max(50, Math.min(Number(tileWidth) || DEFAULT_SETTINGS.tileWidth, 1200));
   const factor = baseWidth <= 400 ? 2 : (baseWidth <= 600 ? 1.5 : 1);
@@ -351,7 +359,7 @@ function shrinkImageForCache(dataUrl, targetWidth = getFastCacheTargetWidth()) {
         }
 
         if (srcW <= targetWidth) {
-          thumbnailShrinkCache.set(dataUrl, dataUrl);
+          setBoundedMap(thumbnailShrinkCache, dataUrl, dataUrl, 40);
           resolve(dataUrl);
           return;
         }
@@ -367,11 +375,7 @@ function shrinkImageForCache(dataUrl, targetWidth = getFastCacheTargetWidth()) {
         ctx.drawImage(img, 0, 0, w, h);
 
         const thumbUrl = canvas.toDataURL('image/jpeg', 0.75);
-        if (thumbnailShrinkCache.size >= 40) {
-          const firstKey = thumbnailShrinkCache.keys().next().value;
-          thumbnailShrinkCache.delete(firstKey);
-        }
-        thumbnailShrinkCache.set(dataUrl, thumbUrl);
+        setBoundedMap(thumbnailShrinkCache, dataUrl, thumbUrl, 40);
         resolve(thumbUrl);
       } catch (err) {
         resolve(dataUrl);
@@ -384,9 +388,19 @@ function shrinkImageForCache(dataUrl, targetWidth = getFastCacheTargetWidth()) {
 
 function getScreenshotSig(dataUrl) {
   if (!dataUrl || typeof dataUrl !== 'string') return '';
-  const len = dataUrl.length;
-  const mid = Math.floor(len / 2);
-  return `${len}:${dataUrl.slice(mid, mid + 32)}:${dataUrl.slice(-32)}`;
+  let h1 = 0xdeadbeef ^ dataUrl.length;
+  let h2 = 0x41c64e6d ^ dataUrl.length;
+  for (let i = 0; i < dataUrl.length; i++) {
+    const ch = dataUrl.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hashVal = (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+  return `${dataUrl.length}_${hashVal}`;
 }
 
 async function generateFastSites(sitesToCache, targetWidth) {
@@ -901,10 +915,7 @@ function getScreenshotAspectSync(dataUrl) {
           const w = (binary.charCodeAt(i + 7) << 8) | binary.charCodeAt(i + 8);
           if (w > 0 && h > 0) {
             const aspect = w / h;
-            if (screenshotAspectCache.size >= 100) {
-              screenshotAspectCache.delete(screenshotAspectCache.keys().next().value);
-            }
-            screenshotAspectCache.set(dataUrl, aspect);
+            setBoundedMap(screenshotAspectCache, dataUrl, aspect, 100);
             return aspect;
           }
         }
@@ -923,10 +934,7 @@ function getScreenshotAspectSync(dataUrl) {
       const h = (binary.charCodeAt(20) << 24) | (binary.charCodeAt(21) << 16) | (binary.charCodeAt(22) << 8) | binary.charCodeAt(23);
       if (w > 0 && h > 0) {
         const aspect = w / h;
-        if (screenshotAspectCache.size >= 100) {
-          screenshotAspectCache.delete(screenshotAspectCache.keys().next().value);
-        }
-        screenshotAspectCache.set(dataUrl, aspect);
+        setBoundedMap(screenshotAspectCache, dataUrl, aspect, 100);
         return aspect;
       }
     }
@@ -968,10 +976,7 @@ function fitTilePreviewImage(imageEl, previewEl, screenshotUrl, isSplit = false)
   img.onload = () => {
     if (img.naturalWidth && img.naturalHeight) {
       const aspect = img.naturalWidth / img.naturalHeight;
-      if (screenshotAspectCache.size >= 100) {
-        screenshotAspectCache.delete(screenshotAspectCache.keys().next().value);
-      }
-      screenshotAspectCache.set(screenshotUrl, aspect);
+      setBoundedMap(screenshotAspectCache, screenshotUrl, aspect, 100);
       applyFit(aspect);
     }
   };
@@ -1032,7 +1037,7 @@ async function updateTilePreviewSmooth(preview, site, isSplit = false) {
   } catch {}
 
   if (img.naturalWidth && img.naturalHeight) {
-    screenshotAspectCache.set(newScreenshotUrl, img.naturalWidth / img.naturalHeight);
+    setBoundedMap(screenshotAspectCache, newScreenshotUrl, img.naturalWidth / img.naturalHeight, 100);
   }
 
   const existingImage = preview.querySelector('.tile-preview-image');
