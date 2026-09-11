@@ -1,6 +1,6 @@
-# Speed Dial for Firefox
+# Speed Dial Flow for Firefox
 
-A modern, lightning-fast, and deeply customizable Speed Dial new tab page for Mozilla Firefox. Built with pure Vanilla JavaScript and WebExtensions API (Manifest V2) for maximum responsiveness, privacy, and zero bloat.
+A modern, lightning-fast, and deeply customizable Speed Dial Flow new tab page for Mozilla Firefox. Built with pure Vanilla JavaScript and WebExtensions API (Manifest V2) for maximum responsiveness, privacy, and zero bloat.
 
 ---
 
@@ -20,7 +20,7 @@ A modern, lightning-fast, and deeply customizable Speed Dial new tab page for Mo
 
 ## ⚙️ Configuration & Settings
 
-Speed Dial offers extensive customization to match your personal aesthetic and display resolution. Access the settings panel anytime via the menu button in the top toolbar:
+Speed Dial Flow offers extensive customization to match your personal aesthetic and display resolution. Access the settings panel anytime via the menu button in the top toolbar:
 
 ### 1. General & Language (`Allgemein & Sprache`)
 - **Language:** Choose between `Automatic (System)`, `German (Deutsch)`, or `English`.
@@ -75,7 +75,7 @@ Speed Dial offers extensive customization to match your personal aesthetic and d
 
 ### 6. Data Backup & Migration (`Datensicherung`)
 - **Export Backup:** Downloads a complete `.zip` archive holding all site entries, split configurations, screenshot images, custom wallpaper, and user preferences.
-- **Import Backup:** Restore from any existing Speed Dial `.zip` archive.
+- **Import Backup:** Restore from any existing Speed Dial Flow `.zip` archive.
 
 ---
 
@@ -108,13 +108,13 @@ Right-click on any dial to open the interactive context menu:
 1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on...** (`Vorübergehendes Add-on laden...`).
 3. Select the `manifest.json` file inside this repository directory.
-4. Open a new tab (`Ctrl + T`) to launch Speed Dial.
+4. Open a new tab (`Ctrl + T`) to launch Speed Dial Flow.
 
 ### Build / Package Extension
 To package the extension into an installable `.zip` / `.xpi`:
 ```bash
 # Zip the essential extension files
-zip -r speed-dial-firefox.zip manifest.json _locales/ css/ icons/ js/ pages/
+zip -r speed-dial-flow.zip manifest.json _locales/ css/ icons/ js/ pages/
 ```
 
 ---
