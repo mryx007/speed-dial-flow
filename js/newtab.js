@@ -871,8 +871,104 @@ function attachTileDragEvents(tile, siteId) {
   });
 }
 
-function fitTilePreviewImage(imageEl) {
-  if (imageEl) imageEl.style.backgroundSize = '';
+const screenshotAspectCache = new Map();
+
+function getScreenshotAspectSync(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') return null;
+
+  const cached = screenshotAspectCache.get(dataUrl);
+  if (cached) return cached;
+
+  const commaIdx = dataUrl.indexOf(',');
+  if (commaIdx < 0) return null;
+
+  try {
+    const binary = atob(dataUrl.slice(commaIdx + 1, commaIdx + 1 + 2048));
+    if (binary.charCodeAt(0) === 0xff && binary.charCodeAt(1) === 0xd8) {
+      let i = 2;
+      while (i < binary.length - 8) {
+        if (binary.charCodeAt(i) !== 0xff) { i++; continue; }
+        const marker = binary.charCodeAt(i + 1);
+        if (marker === 0xc0 || marker === 0xc1 || marker === 0xc2) {
+          const h = (binary.charCodeAt(i + 5) << 8) | binary.charCodeAt(i + 6);
+          const w = (binary.charCodeAt(i + 7) << 8) | binary.charCodeAt(i + 8);
+          if (w > 0 && h > 0) {
+            const aspect = w / h;
+            if (screenshotAspectCache.size >= 100) {
+              screenshotAspectCache.delete(screenshotAspectCache.keys().next().value);
+            }
+            screenshotAspectCache.set(dataUrl, aspect);
+            return aspect;
+          }
+        }
+        const len = (binary.charCodeAt(i + 2) << 8) | binary.charCodeAt(i + 3);
+        if (len < 2) break;
+        i += 2 + len;
+      }
+    } else if (
+      binary.charCodeAt(0) === 0x89 &&
+      binary.charCodeAt(1) === 0x50 &&
+      binary.charCodeAt(2) === 0x4e &&
+      binary.charCodeAt(3) === 0x47 &&
+      binary.length >= 24
+    ) {
+      const w = (binary.charCodeAt(16) << 24) | (binary.charCodeAt(17) << 16) | (binary.charCodeAt(18) << 8) | binary.charCodeAt(19);
+      const h = (binary.charCodeAt(20) << 24) | (binary.charCodeAt(21) << 16) | (binary.charCodeAt(22) << 8) | binary.charCodeAt(23);
+      if (w > 0 && h > 0) {
+        const aspect = w / h;
+        if (screenshotAspectCache.size >= 100) {
+          screenshotAspectCache.delete(screenshotAspectCache.keys().next().value);
+        }
+        screenshotAspectCache.set(dataUrl, aspect);
+        return aspect;
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
+function fitTilePreviewImage(imageEl, previewEl, screenshotUrl, isSplit = false) {
+  if (settings.previewFit !== 'cover') {
+    imageEl.style.backgroundSize = '';
+    return;
+  }
+
+  const applyFit = aspect => {
+    const previewWidth = previewEl.offsetWidth || settings.tileWidth;
+    let previewHeight = previewEl.offsetHeight;
+    if (!previewHeight) {
+      previewHeight = isSplit
+        ? Math.max(20, (settings.tileHeight - settings.titleBarHeight) / 2)
+        : settings.tileHeight;
+    }
+    const tileAspect = previewWidth / previewHeight;
+
+    if (aspect > tileAspect + 0.02) {
+      imageEl.style.backgroundSize = '100% 100%';
+    } else {
+      imageEl.style.backgroundSize = '';
+    }
+  };
+
+  const syncAspect = getScreenshotAspectSync(screenshotUrl);
+  if (syncAspect) {
+    applyFit(syncAspect);
+    return;
+  }
+
+  const img = new Image();
+  img.onload = () => {
+    if (img.naturalWidth && img.naturalHeight) {
+      const aspect = img.naturalWidth / img.naturalHeight;
+      if (screenshotAspectCache.size >= 100) {
+        screenshotAspectCache.delete(screenshotAspectCache.keys().next().value);
+      }
+      screenshotAspectCache.set(screenshotUrl, aspect);
+      applyFit(aspect);
+    }
+  };
+  img.src = screenshotUrl;
 }
 
 function renderTilePreview(preview, site, isSplit = false) {
