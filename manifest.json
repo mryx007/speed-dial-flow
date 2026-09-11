@@ -23,7 +23,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "speed-dial@georg.local",
+      "id": "speed-dial-flow@local",
       "strict_min_version": "150.0",
       "data_collection_permissions": {
         "required": [
