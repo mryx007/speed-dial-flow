@@ -382,11 +382,13 @@ async function generateFastSites(sitesToCache, targetWidth) {
   return Promise.all(sitesToCache.map(async site => {
     const copy = { ...site };
     if (copy.screenshot) {
+      copy._origLen = copy.screenshot.length;
       copy.screenshot = await shrinkImageForCache(copy.screenshot, targetWidth);
     }
     if (copy.split) {
       copy.split = { ...copy.split };
       if (copy.split.screenshot) {
+        copy.split._origLen = copy.split.screenshot.length;
         copy.split.screenshot = await shrinkImageForCache(copy.split.screenshot, targetWidth);
       }
     }
@@ -410,18 +412,16 @@ async function cacheFastSitesWithThumbnails(sitesToCache, force = true) {
     localStorage.setItem(FAST_CACHE_WIDTH_KEY, String(targetWidth));
   } catch (e) {
     console.warn('Could not save fast sites cache at targetWidth', targetWidth, e);
-    if (targetWidth > 460) {
+    try {
+      const fallbackSites = await generateFastSites(sitesToCache, 320);
+      localStorage.setItem(FAST_CACHE_SITES_KEY, JSON.stringify(fallbackSites));
+      localStorage.setItem(FAST_CACHE_WIDTH_KEY, '320');
+    } catch (errFallback) {
+      console.warn('Fallback fast sites cache also failed:', errFallback);
       try {
-        const fallbackSites = await generateFastSites(sitesToCache, 460);
-        localStorage.setItem(FAST_CACHE_SITES_KEY, JSON.stringify(fallbackSites));
-        localStorage.setItem(FAST_CACHE_WIDTH_KEY, '460');
-      } catch (errFallback) {
-        console.warn('Fallback fast sites cache also failed:', errFallback);
-        try {
-          localStorage.removeItem(FAST_CACHE_SITES_KEY);
-          localStorage.removeItem(FAST_CACHE_WIDTH_KEY);
-        } catch (_) {}
-      }
+        localStorage.removeItem(FAST_CACHE_SITES_KEY);
+        localStorage.removeItem(FAST_CACHE_WIDTH_KEY);
+      } catch (_) {}
     }
   }
 }
@@ -429,7 +429,10 @@ async function cacheFastSitesWithThumbnails(sitesToCache, force = true) {
 function writeFastCacheSettings(settingsToCache) {
   if (!settingsToCache) return;
   try {
-    localStorage.setItem(FAST_CACHE_SETTINGS_KEY, JSON.stringify(settingsToCache));
+    const toSave = (settingsToCache.backgroundImage && settingsToCache.backgroundImage.length > 65536)
+      ? { ...settingsToCache, backgroundImage: '' }
+      : settingsToCache;
+    localStorage.setItem(FAST_CACHE_SETTINGS_KEY, JSON.stringify(toSave));
   } catch (e) {
     try {
       const fallback = { ...settingsToCache, backgroundImage: '' };
@@ -453,16 +456,26 @@ function restoreFastCache() {
     if (rawSites) {
       const parsedSites = JSON.parse(rawSites);
       if (Array.isArray(parsedSites) && parsedSites.length > 0) {
-        const hasScreenshots = parsedSites.some(s => s.screenshot || (s.split && s.split.screenshot));
-        if (hasScreenshots) {
-          sites = parsedSites;
-          render();
-        }
+        sites = parsedSites;
+        render();
       }
     }
   } catch (error) {
     console.warn('Fast cache restore failed:', error);
   }
+}
+
+function isSameScreenshot(cachedSite, newSite) {
+  const cur = cachedSite?.screenshot || '';
+  const next = newSite?.screenshot || '';
+  if (!cur && !next) return true;
+  if (!cur || !next) return false;
+  if (cur === next) return true;
+  if (cachedSite?._origLen && cachedSite._origLen === next.length) return true;
+  if (cachedSite?.id && newSite?.id && String(cachedSite.id) === String(newSite.id) && cur.startsWith('data:image/') && next.startsWith('data:image/')) {
+    return true;
+  }
+  return false;
 }
 
 function haveSitesChanged(currentSites, newSites) {
@@ -474,8 +487,8 @@ function haveSitesChanged(currentSites, newSites) {
     if (a.id !== b.id || a.url !== b.url || a.title !== b.title) return true;
     if (!!a.split !== !!b.split) return true;
     if (a.split && b.split && (a.split.id !== b.split.id || a.split.url !== b.split.url || a.split.title !== b.split.title)) return true;
-    if (a.screenshot !== b.screenshot) return true;
-    if (a.split && b.split && (a.split.screenshot !== b.split.screenshot)) return true;
+    if (!isSameScreenshot(a, b)) return true;
+    if (a.split && b.split && !isSameScreenshot(a.split, b.split)) return true;
   }
   return false;
 }
@@ -501,6 +514,18 @@ async function load() {
     const settingsChanged = JSON.stringify(settings) !== JSON.stringify(normalizedSettings);
     const hadRenderedSites = sites.length > 0;
     const sitesChanged = !hadRenderedSites || haveSitesChanged(sites, loadedSites);
+
+    if (!sitesChanged && hadRenderedSites) {
+      loadedSites.forEach((loadedSite, i) => {
+        const currentSite = sites[i];
+        if (currentSite) {
+          if (currentSite._origLen) loadedSite._origLen = currentSite._origLen;
+          if (currentSite.split && loadedSite.split && currentSite.split._origLen) {
+            loadedSite.split._origLen = currentSite.split._origLen;
+          }
+        }
+      });
+    }
 
     sites = loadedSites;
     settings = normalizedSettings;
